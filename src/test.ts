@@ -1,5 +1,4 @@
 import { DatabaseServer, DatabaseClient } from "./index";
-import { inspect } from "bun";
 
 const auth = "AA";
 
@@ -17,7 +16,8 @@ const server = new DatabaseServer({
 server.start();
 
 const client = new DatabaseClient("localhost:3000/", { auth });
-client.backup("get", "1717833565309", "e").then((d) => console.log(d));
+client.ping().then((r) => console.log(r + "ms"));
+
 //client.getTables().then((r) => console.log(r));
 /**
 const response = fetch(

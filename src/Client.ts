@@ -72,6 +72,7 @@ export type Backup =
 export type MaybePromise<T> = Promise<T> | T;
 
 export interface DatabaseEvents {
+  error: (data: { code: number; message: string }) => MaybePromise<any>;
   getAll: (
     data: GetAll<{
       data: {
@@ -288,6 +289,14 @@ export class DatabaseClient extends TypedEmitter<DatabaseEvents> {
   async backup(method: "restore", id: string): Promise<BackupRestored<false>>;
 
   /**
+   * Deletes all backup
+   * @param method "delete"
+   * @param id ID of backup
+   * @returns BackupDeleted<false, string>
+   */
+  async backup(method: "delete"): Promise<BackupDeleted<false, string>>;
+
+  /**
    * Deletes a backup
    * @param method "delete"
    * @param id ID of backup
@@ -339,9 +348,19 @@ export class DatabaseClient extends TypedEmitter<DatabaseEvents> {
             body: JSON.stringify({ method: "create" }),
           })
         );
-        return response.ok
-          ? await response!.json()
-          : { code: response.status, message: response.statusText };
+
+        if (response.ok) {
+          const jsonResponse = await response.json();
+          this.emit("backupCreate", jsonResponse);
+          return jsonResponse;
+        } else {
+          const errorResponse = {
+            code: response.status,
+            message: response.statusText,
+          };
+          this.emit("error", errorResponse);
+          return errorResponse;
+        }
       }
       case "get": {
         let response = await fetch(
@@ -357,28 +376,98 @@ export class DatabaseClient extends TypedEmitter<DatabaseEvents> {
             }
           )
         );
-        return response.ok
-          ? await response!.json()
-          : { code: response.status, message: response.statusText };
+        if (response.ok) {
+          const jsonResponse = await response.json();
+          this.emit("backupGet", jsonResponse);
+          return jsonResponse;
+        } else {
+          const errorResponse = {
+            code: response.status,
+            message: response.statusText,
+          };
+          this.emit("error", errorResponse);
+          return errorResponse;
+        }
       }
       case "restore": {
+        if (!id) {
+          const errorResponse = {
+            code: 400,
+            message: "You must give a id to restore",
+          };
+          this.emit("error", errorResponse);
+          return errorResponse;
+        }
         const response = await fetch(
-          new Request(parseURL(this.url, "backup/"), {
+          new Request(parseURL(this.url, "backup/", id), {
             headers: {
               Accept: "application/json",
               "Content-Type": "application/json",
               auth: this.auth,
             },
             method: "POST",
-            body: JSON.stringify({ method: "restore" }),
+            body: JSON.stringify({ method: "restore", table }),
           })
         );
-        return response.ok
-          ? await response!.json()
-          : { code: response.status, message: response.statusText };
+        if (response.ok) {
+          const jsonResponse = await response.json();
+          this.emit("backupRestore", jsonResponse);
+          return jsonResponse;
+        } else {
+          const errorResponse = {
+            code: response.status,
+            message: response.statusText,
+          };
+          this.emit("error", errorResponse);
+          return errorResponse;
+        }
       }
       case "delete": {
+        let response = await fetch(
+          new Request(
+            parseURL(this.url, "backup/", id!, table ? `?table=${table}` : ""),
+            {
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                auth: this.auth,
+              },
+              method: "DELETE",
+            }
+          )
+        );
+        if (response.ok) {
+          const jsonResponse = await response.json();
+          this.emit("backupDelete", jsonResponse);
+          return jsonResponse;
+        } else {
+          const errorResponse = {
+            code: response.status,
+            message: response.statusText,
+          };
+          this.emit("error", errorResponse);
+          return errorResponse;
+        }
       }
     }
+  }
+
+  /**
+   * Gets the latency with the EveDB Server
+   * @returns number
+   */
+  async ping(): Promise<number> {
+    const time = Date.now();
+    await fetch(
+      new Request(parseURL(this.url), {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          auth: this.auth,
+        },
+        method: "GET",
+      })
+    );
+    return Date.now() - time;
   }
 }

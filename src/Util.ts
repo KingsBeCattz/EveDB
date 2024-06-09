@@ -72,7 +72,7 @@ export class Util {
     fs.writeFileSync(path, data);
   }
 
-  create_backup() {
+  create_backup(server: DatabaseServer) {
     const id = String(Date.now());
     const path = join(process.cwd(), this.server.path, "backups", id);
     fs.mkdirSync(path);
@@ -129,7 +129,6 @@ export class Util {
         const bpath = join(path, `${table}.json`);
         const rpath = join(_path, `${table}.json`);
         const data = fs.readFileSync(bpath).toString();
-        console.log(rpath, data);
         fs.writeFileSync(rpath, data);
         return true;
       } else {

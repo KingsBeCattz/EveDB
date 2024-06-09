@@ -165,26 +165,67 @@ export class DatabaseServer {
       });
     });
 
-    this.app.all("/backup/", (req, res) => {
+    this.app.all("/backup/:id?", (req, res) => {
+      const { id } = req.params as { id: string };
+      const backups = fs
+        .readdirSync(join(process.cwd(), this.path, "backups"))
+        .filter((f) =>
+          fs
+            .lstatSync(join(process.cwd(), this.path, "backups", f))
+            .isDirectory()
+        );
       if (req.method == "POST") {
-        const { method } = req.body as
+        const { table, method } = req.body as
           | {
+              table?: string;
               method: "restore";
             }
           | {
+              table?: string;
               method: "create";
             };
-        console.log("a");
         if (!method) return this.util.send(res, 400, "Invalid method");
-        const id = this.util.create_backup();
+        if (method == "create") {
+          const id = this.util.create_backup(this);
 
-        this.util.sendJSON(res, {
-          code: 200,
-          message: "Backup was created successfully",
-          id,
-          success: true,
-        });
-      } else {
+          this.util.sendJSON(res, {
+            code: 200,
+            message: "Backup was created successfully",
+            id,
+            success: true,
+          });
+        } else if (method == "restore") {
+          if (!backups.includes(id))
+            return this.util.send(
+              res,
+              404,
+              `Doesn\'t a backup with the id: "${id}"`
+            );
+
+          const tables = Object.fromEntries(
+            this.tables.map((t) => [t, this.util.get_backup(id, t)])
+          );
+          if (table) {
+            const data = tables[table as string];
+            if (!data)
+              this.util.send(res, 404, `"${table}" doesn\'t exists on ${id}`);
+            this.util.restore_backup(id, table);
+            this.util.sendJSON(res, {
+              code: 200,
+              message: "Restore from backup was successfully",
+              table,
+              success: true,
+            });
+          } else this.util.restore_backup(id);
+          this.util.sendJSON(res, {
+            code: 200,
+            message: "Restore from backup was successfully",
+            success: true,
+          });
+        }
+      } else if (req.method == "DELETE") {
+        const { id } = req.params;
+        const { table } = req.query as { table: string };
         const backups = fs
           .readdirSync(join(process.cwd(), this.path, "backups"))
           .filter((f) =>
@@ -192,17 +233,91 @@ export class DatabaseServer {
               .lstatSync(join(process.cwd(), this.path, "backups", f))
               .isDirectory()
           );
-        return this.util.sendJSON(res, {
-          code: 200,
-          data: Object.fromEntries(
-            backups.map((b) => [
-              b,
-              Object.fromEntries(
-                this.tables.map((t) => [t, this.util.get_backup(b, t)])
-              ),
-            ])
-          ),
-        });
+
+        if (id) {
+          if (!backups.includes(id))
+            return this.util.send(
+              res,
+              404,
+              `Doesn\'t a backup with the id: "${id}"`
+            );
+          if (table) {
+            this.util.delete_backup(id, table);
+            this.util.sendJSON(res, {
+              code: 200,
+              message: `Table "${table}" was deleted successfully from backup: "${id}"`,
+              id,
+              table,
+              success: true,
+            });
+          } else {
+            this.util.delete_backup(id);
+            this.util.sendJSON(res, {
+              code: 200,
+              message: `Backup "${id}" was deleted successfully`,
+              id,
+              success: true,
+            });
+          }
+        } else {
+          backups.forEach((b) => this.util.delete_backup(b));
+          this.util.sendJSON(res, {
+            code: 200,
+            message: `All backups was deleted successfully`,
+            id: backups,
+            success: true,
+          });
+        }
+      } else if (req.method == "GET") {
+        const { id } = req.params;
+        const { table } = req.query;
+        const backups = fs
+          .readdirSync(join(process.cwd(), this.path, "backups"))
+          .filter((f) =>
+            fs
+              .lstatSync(join(process.cwd(), this.path, "backups", f))
+              .isDirectory()
+          );
+
+        if (id) {
+          if (!backups.includes(id))
+            return this.util.send(
+              res,
+              404,
+              `Doesn\'t a backup with the id: "${id}"`
+            );
+          const tables = Object.fromEntries(
+            this.tables.map((t) => [t, this.util.get_backup(id, t)])
+          );
+          if (table) {
+            const data = tables[table as string];
+            if (!data)
+              this.util.send(res, 404, `"${table}" doesn\'t exists on ${id}`);
+            this.util.sendJSON(res, {
+              code: 200,
+              id,
+              table,
+              data,
+            });
+          } else
+            this.util.sendJSON(res, {
+              code: 200,
+              id,
+              tables,
+            });
+        } else {
+          this.util.sendJSON(res, {
+            code: 200,
+            backups: Object.fromEntries(
+              backups.map((b) => [
+                b,
+                Object.fromEntries(
+                  this.tables.map((t) => [t, this.util.get_backup(b, t)])
+                ),
+              ])
+            ),
+          });
+        }
       }
     });
 
@@ -272,163 +387,10 @@ export class DatabaseServer {
         }
       });
 
-    this.app
-      .route("/backup/:id")
-      .get(auth, (req, res) => {
-        const { id } = req.params;
-        const { table } = req.query;
-        const backups = fs
-          .readdirSync(join(process.cwd(), this.path, "backups"))
-          .filter((f) =>
-            fs
-              .lstatSync(join(process.cwd(), this.path, "backups", f))
-              .isDirectory()
-          );
-
-        if (!backups.includes(id))
-          return this.util.send(
-            res,
-            404,
-            `Doesn\'t a backup with the id: "${id}"`
-          );
-
-        if (id) {
-          const tables = Object.fromEntries(
-            this.tables.map((t) => [t, this.util.get_backup(id, t)])
-          );
-          if (table) {
-            const data = tables[table as string];
-            if (!data)
-              this.util.send(res, 404, `"${table}" doesn\'t exists on ${id}`);
-            this.util.sendJSON(res, {
-              code: 200,
-              id,
-              table,
-              data,
-            });
-          } else
-            this.util.sendJSON(res, {
-              code: 200,
-              id,
-              tables,
-            });
-        } else {
-          this.util.sendJSON(res, {
-            code: 200,
-            backups: Object.fromEntries(
-              backups.map((b) => [
-                b,
-                Object.fromEntries(
-                  this.tables.map((t) => [t, this.util.get_backup(b, t)])
-                ),
-              ])
-            ),
-          });
-        }
-      })
-      .post(auth, (req, res) => {
-        const { id } = req.params;
-        const { table, method } = req.body as
-          | {
-              table?: string;
-              method: "restore";
-            }
-          | {
-              table?: string;
-              method: "create";
-            };
-        const backups = fs
-          .readdirSync(join(process.cwd(), this.path, "backups"))
-          .filter((f) =>
-            fs
-              .lstatSync(join(process.cwd(), this.path, "backups", f))
-              .isDirectory()
-          );
-
-        if (method === "create")
-          return this.util.send(res, 400, "Invalid usage");
-        else if (method === "restore") {
-          if (!backups.includes(id))
-            return this.util.send(
-              res,
-              404,
-              `Doesn\'t a backup with the id: "${id}"`
-            );
-
-          const tables = Object.fromEntries(
-            this.tables.map((t) => [t, this.util.get_backup(id, t)])
-          );
-          if (table) {
-            const data = tables[table as string];
-            if (!data)
-              this.util.send(res, 404, `"${table}" doesn\'t exists on ${id}`);
-            this.util.restore_backup(id, table);
-            this.util.sendJSON(res, {
-              code: 200,
-              message: "Restore from backup was successfully",
-              table,
-              success: true,
-            });
-          } else this.util.restore_backup(id);
-          this.util.sendJSON(res, {
-            code: 200,
-            message: "Restore from backup was successfully",
-            success: true,
-          });
-        } else this.util.send(res, 400, "Invalid method");
-      })
-      .delete(auth, (req, res) => {
-        const { id } = req.params;
-        const { table } = req.query as { table: string };
-        const backups = fs
-          .readdirSync(join(process.cwd(), this.path, "backups"))
-          .filter((f) =>
-            fs
-              .lstatSync(join(process.cwd(), this.path, "backups", f))
-              .isDirectory()
-          );
-
-        if (!backups.includes(id))
-          return this.util.send(
-            res,
-            404,
-            `Doesn\'t a backup with the id: "${id}"`
-          );
-
-        if (id) {
-          if (table) {
-            this.util.delete_backup(id, table);
-            this.util.sendJSON(res, {
-              code: 200,
-              message: `Table "${table}" was deleted successfully from backup: "${id}"`,
-              id,
-              table,
-              success: true,
-            });
-          } else {
-            this.util.delete_backup(id);
-            this.util.sendJSON(res, {
-              code: 200,
-              message: `Backup "${id}" was deleted successfully`,
-              id,
-              success: true,
-            });
-          }
-        } else {
-          backups.forEach((b) => this.util.delete_backup(b));
-          this.util.sendJSON(res, {
-            code: 200,
-            message: `All backups was deleted successfully`,
-            id: backups,
-            success: true,
-          });
-        }
-      });
-
     if (this.backup) {
       let path = join(process.cwd(), this.path, "backups");
       if (!fs.existsSync(path)) fs.mkdirSync(path);
-      setInterval(this.util.create_backup, this.backup.interval);
+      setInterval(() => this.util.create_backup(this), this.backup.interval);
     }
 
     this.app.listen(this.port, () =>
