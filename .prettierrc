@@ -1,0 +1,10 @@
+{
+  "tabWidth": 1,
+  "useTabs": true,
+  "quoteProps": "consistent",
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "parser": "typescript",
+  "filepath": "./src/*",
+  "bracketSameLine": true
+}

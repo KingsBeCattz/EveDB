@@ -1,0 +1,9 @@
+node_modules
+src
+.gitignore
+.prettierrc
+bun.lockb
+package-lock.json
+tsconfig.json
+.npmignore
+build.config.ts

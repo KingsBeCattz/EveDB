@@ -1,27 +1,31 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "esnext",
         "module": "commonjs", //commonjs
         "rootDir": "./src/",
-        "outDir": "./out/",
+        "outDir": "./dist/",
         "strict": true,
         "moduleResolution": "node",
         "importHelpers": true,
         "experimentalDecorators": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
+        "noFallthroughCasesInSwitch": true,
         "allowSyntheticDefaultImports": true,
         "resolveJsonModule": true,
         "forceConsistentCasingInFileNames": true,
-        "removeComments": true,
+        "removeComments": false,
         "typeRoots": [
             "node_modules/@types"
         ],
-        "sourceMap": false,
+        "sourceMap": true,
         "baseUrl": "./",
         "noImplicitAny": true,
-        "allowImportingTsExtensions": true,
-        "noEmit": true
+        "emitDeclarationOnly": false,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "declaration": true
     },
     "files": [
         "src/index.ts"
@@ -31,6 +35,7 @@
     ],
     "exclude": [
         "node_modules",
-        "out",
+        "dist",
+        "./build.config.ts"
     ],
 }
