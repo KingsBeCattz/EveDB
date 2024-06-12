@@ -2,15 +2,18 @@
 
 A Database using: Express, JSON files and Tables
 
+> - ***Update: 1.1.1:
+>   - Fixed bug where path to save data doesn't create
+
 ## Index
 - [EveDB](#evedb)
-  - [Index](#index)
-  - [Install](#install)
-  - [Server](#server)
-  - [Client](#client)
-  - [Client Events](#client-events)
-  - [Client Methods](#client-methods)
-  - [Contact me](#contact-me)
+	- [Index](#index)
+	- [Install](#install)
+	- [Server](#server)
+	- [Client](#client)
+	- [Client Events](#client-events)
+	- [Client Methods](#client-methods)
+	- [Contact me](#contact-me)
 
 ## Install
 > _It is simply the installation of the package, here it is shown with the bun installer, however with any package that has access to the npm API it is possible to install it._

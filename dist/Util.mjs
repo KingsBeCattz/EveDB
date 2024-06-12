@@ -21,14 +21,14 @@ class Util {
   }
   check_folders() {
     let path = join(process.cwd(), this.server.path);
-    if (this.server.backup) {
-      if (!fs.existsSync(join(path, "backups")))
-        fs.mkdirSync(join(path, "backups"));
-    }
     if (!fs.existsSync(path))
       fs.mkdirSync(path);
     if (!fs.existsSync(join(path, "tables")))
       fs.mkdirSync(join(path, "tables"));
+    if (this.server.backup) {
+      if (!fs.existsSync(join(path, "backups")))
+        fs.mkdirSync(join(path, "backups"));
+    }
   }
   send(res, code, message) {
     res.status(code).send({
